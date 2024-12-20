@@ -18,6 +18,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 
@@ -27,35 +28,23 @@ public class AlbumsController {
     @Autowired
     private OAuth2AuthorizedClientService oauth2ClientService;
 
+//    @Autowired
+//    private RestTemplate restTemplate;
+
     @Autowired
-    private RestTemplate restTemplate;
+    private WebClient webClient;
 
     @GetMapping("/albums")
     public String getAlbums(Model model, @AuthenticationPrincipal OidcUser principal) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
-
-        OAuth2AuthorizedClient authorizedClient = oauth2ClientService.loadAuthorizedClient(oauthToken.getAuthorizedClientRegistrationId(), oauthToken.getName());
-        String jwtAccessToken = authorizedClient.getAccessToken().getTokenValue();
-        System.out.println("JWT Access Token: " + jwtAccessToken);
-
-        System.out.println("Principal = " + principal);
-
-        var idToken = principal.getIdToken();
-        var idTokenValue = idToken.getTokenValue();
-        System.out.println("idTokenValue = " + idTokenValue);
 
         String url = "http://localhost:8082/albums";
-        HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.add("Authorization", "Bearer " + jwtAccessToken);
 
-        HttpEntity<List<AlbumRest>> httpEntity = new HttpEntity<>(httpHeaders);
-
-        ResponseEntity<List<AlbumRest>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, httpEntity,
-                new ParameterizedTypeReference<List<AlbumRest>>() {
-                });
-
-        List<AlbumRest> albumRests = responseEntity.getBody();
+        List<AlbumRest> albumRests = webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<AlbumRest>>() {
+                })
+                .block();//ok for now
 
         model.addAttribute("albums", albumRests);
 
